@@ -59,7 +59,7 @@ x-airflow-common:
     AIRFLOW__CELERY__BROKER_URL: redis://:@redis:6379/0
     AIRFLOW__CORE__FERNET_KEY: ''
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
-    AIRFLOW__CORE__LOAD_EXAMPLES: 'true'
+    AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
     AIRFLOW__API__AUTH_BACKENDS: 'airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session'
     # yamllint disable rule:line-length
     # Use simple http server on scheduler for health checks
@@ -285,6 +285,37 @@ services:
       <<: *airflow-common-depends-on
       airflow-init:
         condition: service_completed_successfully
+  mongodb:
+    image: mongo:5.0
+    container_name: mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb-data:/data/db
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example
+    restart: always
+    healthcheck:
+      test: ["CMD", "mongo", "--eval", "db.runCommand({ ping: 1 })"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
 
+  nestjs-app:
+    build:
+      context: ./project-name  # NestJS 프로젝트 경로
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"  # 로컬 포트와 컨테이너 포트를 매핑
+    environment:
+      - NODE_ENV=production
+      - MONGO_URL=mongodb://mongodb:27017/my-database
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - mongodb
+      - redis
 volumes:
   postgres-db-volume:
+  mongodb-data:
